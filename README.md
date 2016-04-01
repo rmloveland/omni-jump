@@ -1,19 +1,41 @@
 omni-jump.el – Use the right 'jump to source' command for the current mode
 ==========================================================================
 
-You should be able to use one "jump to source" command (and
-keybinding) across all of your various projects, languages, etc.
-This package looks at your current buffer's mode and uses the
-"jump" function you've specified for that mode to jump to the
-source of the thing at point.  It uses the built-in marker stack
-used by Emacs' xref facility so you can jump back using the
-familiar `M-,` command (`xref-pop-marker-stack`).
+This package tries to unite the various 'jump to definition'
+commands you use so they all use the same keybinding, regardless of
+language or mode.
+
+It exports one function, `omni-jump`, and requires you to fill in
+an alist, `*omni-jump-xref-functions*`, which will look something
+like this (here's mine).
+
+       (setq *omni-jump-xref-functions*
+             '((confluence-markup-mode . (confluence-markup-visit-wiki-word-file-at-point))
+               (c-mode . (xref-find-definitions symbol))
+               (c-mode . (ggtags-find-tag-dwim symbol))
+               (c-mode . (semantic-ia-fast-jump point))
+               (cperl-mode . (cperl-view-module-source))
+               (scheme-mode . (xref-find-definitions symbol))
+               (emacs-lisp-mode . (elisp-slime-nav-find-elisp-thing-at-point symbol))
+               (lisp-interaction-mode . (elisp-slime-nav-find-elisp-thing-at-point symbol))))
+
+Since it's an alist, you can override mode settings by just pushing
+new settings pairs onto it.
+
+This mode doesn't bind any keys to `omni-jump`; you can do that
+yourself.  I like M-RET:
+
+       (define-key global-map (kbd "M-RET") #'omni-jump)
+
+It uses the built-in marker stack used by Emacs' xref facility so
+you can jump back using the familiar `M-,` command
+(`xref-pop-marker-stack`).
 
 Usage
 -----
 
 For each mode you want this to work with, add a "mode-function"
-pair like this to the `*omni-jump-xref-functions` dispatch table
+pair like this to the `*omni-jump-xref-functions*` dispatch table
 (just an alist):
 
     (c-mode . (ggtags-find-tag-dwim symbol))
@@ -42,22 +64,27 @@ mode, it doesn't try to do anything smart; it just barfs.
 TODO
 ----
 
-The "symbol" argument required by the dispatch table values is
-ugly.  It should probably be replaced by a `T` or `NIL` value that
-determines whether the jump function takes the symbol at point as
-an argument.  Even better, no argument should be required; whether
-the function needs an argument could be figured out automagically.
++ This should really be rewritten to use the `xref` API and be more
+magical.  As it stands, it's about 40 lines of code, though, so
+it's probably fine for now.
+
++ The "symbol" argument required by the dispatch table values is
+kind of ugly.  It should probably be replaced by a `T` or `NIL`
+value that determines whether the jump function takes the symbol at
+point as an argument.  Even better, we could require no argument;
+whether the function needs an argument could just be figured out
+automagically.
 
 Function Documentation
 ----------------------
 
 ### `(buffer-mode BUFFER-OR-STRING)`
 
-Given the buffer BUFFER-OR-STRING, return that buffer's major mode.
+Given the buffer BUFFER-OR-STRING, return that buffer’s major mode.
 
 ### `(omni-jump)`
 
-Call the 'jump to source' function defined for the current mode.
+Call the ’jump to source’ function defined for the current mode.
 Which function to use is determined by the contents of the
 dispatch table ‘omni-jump--get-xref-mode-function’.
 
